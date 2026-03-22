@@ -50,13 +50,21 @@ echo "**bold** and *italic*" | md-to-slack
 # → *bold* and _italic_
 ```
 
+Use `--split` to get a JSON array of chunks safe for Slack's message limit:
+
+```bash
+cat report.md | md-to-slack --split
+# → ["chunk1...", "chunk2...", ...]
+```
+
 ### TypeScript
 
 Types are included out of the box:
 
 ```ts
-import { markdownToSlack } from 'markdown-to-slack-mrkdwn';
+import { markdownToSlack, splitForSlack } from 'markdown-to-slack-mrkdwn';
 // markdownToSlack(text: string): string
+// splitForSlack(text: string, options?: { maxLength?: number }): string[]
 ```
 
 ### Splitting long messages
