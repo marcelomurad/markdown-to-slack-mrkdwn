@@ -1,0 +1,37 @@
+{
+  "name": "markdown-to-slack-mrkdwn",
+  "version": "1.0.0",
+  "description": "Convert standard Markdown to Slack mrkdwn format. Handles tables, bold/italic, code blocks, links, lists, headings, and more.",
+  "type": "module",
+  "main": "index.mjs",
+  "types": "index.d.ts",
+  "bin": {
+    "md-to-slack": "./cli.mjs"
+  },
+  "keywords": [
+    "markdown",
+    "slack",
+    "mrkdwn",
+    "converter",
+    "format",
+    "markup",
+    "chat",
+    "bot"
+  ],
+  "author": "Marcelo Murad",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marcelomurad/markdown-to-slack-mrkdwn.git"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "index.mjs",
+    "cli.mjs",
+    "index.d.ts",
+    "LICENSE",
+    "README.md"
+  ]
+}
