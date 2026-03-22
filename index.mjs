@@ -135,7 +135,7 @@ export function markdownToSlack(text) {
       content = content.replace(/`([^`\n]+)`/g, '$1');
       block = parts[1] + content + parts[3];
     }
-    text = text.replace(`\u00a7CODE_BLOCK_${i}\u00a7`, block);
+    text = text.replace(`\u00a7CODE_BLOCK_${i}\u00a7`, '\n' + block + '\n');
   }
 
   // Restore inline code (only unresolved ones)
@@ -147,6 +147,9 @@ export function markdownToSlack(text) {
 
   // Clean excessive newlines (max 2 consecutive)
   text = text.replace(/\n{3,}/g, '\n\n');
+
+  // Trim leading/trailing newlines
+  text = text.replace(/^\n+/, '').replace(/\n+$/, '');
 
   return text;
 }
