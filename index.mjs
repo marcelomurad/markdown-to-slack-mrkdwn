@@ -153,3 +153,85 @@ export function markdownToSlack(text) {
 
   return text;
 }
+
+/**
+ * Splits Slack mrkdwn text into chunks that fit within Slack's message limit.
+ * Never splits inside a code block (``` ... ```).
+ *
+ * @param {string} text - Slack mrkdwn text to split
+ * @param {object} [options]
+ * @param {number} [options.maxLength=3500] - Maximum characters per chunk
+ * @returns {string[]} Array of chunks ready to send as separate messages
+ */
+export function splitForSlack(text, options = {}) {
+  const maxLength = options.maxLength || 3500;
+  if (!text || text.length <= maxLength) return [text];
+
+  // Find code block ranges (protected — cannot be split)
+  const codeBlockRanges = [];
+  const re = /```[\s\S]*?```/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    codeBlockRanges.push({ start: m.index, end: m.index + m[0].length });
+  }
+
+  function isInsideCodeBlock(idx) {
+    for (const range of codeBlockRanges) {
+      if (idx > range.start && idx < range.end) return true;
+    }
+    return false;
+  }
+
+  const chunks = [];
+  let pos = 0;
+
+  while (pos < text.length) {
+    // Remaining text fits in one chunk
+    if (pos + maxLength >= text.length) {
+      const chunk = text.slice(pos).replace(/^\n+|\n+$/g, '');
+      if (chunk) chunks.push(chunk);
+      break;
+    }
+
+    const searchEnd = pos + maxLength;
+    let splitAt = -1;
+
+    // Search backwards for best split point: prefer \n\n, then \n
+    for (const sep of ['\n\n', '\n']) {
+      let idx = text.lastIndexOf(sep, searchEnd);
+      while (idx > pos) {
+        if (!isInsideCodeBlock(idx)) {
+          splitAt = idx;
+          break;
+        }
+        idx = text.lastIndexOf(sep, idx - 1);
+      }
+      if (splitAt !== -1) break;
+    }
+
+    if (splitAt === -1) {
+      // No safe split found — check if searchEnd is inside a code block
+      const containingBlock = codeBlockRanges.find(
+        (r) => searchEnd > r.start && searchEnd < r.end,
+      );
+      if (containingBlock) {
+        // Extend past the code block to keep it intact
+        splitAt = containingBlock.end;
+        // Find next newline after the code block for a clean break
+        const nextNl = text.indexOf('\n', splitAt);
+        if (nextNl !== -1) splitAt = nextNl;
+      } else {
+        splitAt = searchEnd;
+      }
+    }
+
+    const chunk = text.slice(pos, splitAt).replace(/^\n+|\n+$/g, '');
+    if (chunk) chunks.push(chunk);
+
+    pos = splitAt;
+    // Skip separator newlines
+    while (pos < text.length && text[pos] === '\n') pos++;
+  }
+
+  return chunks;
+}

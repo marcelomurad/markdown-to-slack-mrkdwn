@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { markdownToSlack } from './index.mjs';
+import { markdownToSlack, splitForSlack } from './index.mjs';
 
 describe('markdownToSlack', () => {
   // --- Edge cases ---
@@ -210,5 +210,88 @@ describe('markdownToSlack', () => {
     assert.ok(result.includes('<https://docs.com|docs>'));
     assert.ok(result.includes('\u2014\u2014\u2014'));
     assert.ok(result.includes('```\nconsole.log("hi");\n```'));
+  });
+});
+
+describe('splitForSlack', () => {
+  it('returns short text as single-element array', () => {
+    assert.deepEqual(splitForSlack('hello'), ['hello']);
+  });
+
+  it('returns falsy input as single-element array', () => {
+    assert.deepEqual(splitForSlack(''), ['']);
+    assert.deepEqual(splitForSlack(null), [null]);
+  });
+
+  it('splits long text at paragraph boundaries', () => {
+    const a = 'a'.repeat(100);
+    const b = 'b'.repeat(100);
+    const text = a + '\n\n' + b;
+    const chunks = splitForSlack(text, { maxLength: 150 });
+    assert.equal(chunks.length, 2);
+    assert.equal(chunks[0], a);
+    assert.equal(chunks[1], b);
+  });
+
+  it('splits at single newline when no paragraph break available', () => {
+    const a = 'a'.repeat(100);
+    const b = 'b'.repeat(100);
+    const text = a + '\n' + b;
+    const chunks = splitForSlack(text, { maxLength: 150 });
+    assert.equal(chunks.length, 2);
+    assert.equal(chunks[0], a);
+    assert.equal(chunks[1], b);
+  });
+
+  it('never splits inside a code block', () => {
+    const codeBlock = '```\n' + 'x'.repeat(200) + '\n```';
+    const text = 'before\n\n' + codeBlock + '\n\nafter';
+    const chunks = splitForSlack(text, { maxLength: 150 });
+    // The code block must be entirely in one chunk
+    const blockChunk = chunks.find((c) => c.includes('```'));
+    assert.ok(blockChunk);
+    const backtickCount = (blockChunk.match(/```/g) || []).length;
+    assert.equal(backtickCount, 2, 'code block opening and closing must be in same chunk');
+  });
+
+  it('keeps oversized code block intact in its own chunk', () => {
+    const codeBlock = '```\n' + 'x'.repeat(5000) + '\n```';
+    const text = 'before\n\n' + codeBlock + '\n\nafter';
+    const chunks = splitForSlack(text, { maxLength: 3500 });
+    assert.ok(chunks.length >= 2);
+    const blockChunk = chunks.find((c) => c.includes('```'));
+    assert.ok(blockChunk.includes('```\n') && blockChunk.includes('\n```'));
+  });
+
+  it('trims leading/trailing newlines from each chunk', () => {
+    const text = 'aaa\n\n\nbbb\n\n\nccc';
+    const chunks = splitForSlack(text, { maxLength: 5 });
+    for (const chunk of chunks) {
+      assert.ok(!chunk.startsWith('\n'), `chunk should not start with newline: "${chunk}"`);
+      assert.ok(!chunk.endsWith('\n'), `chunk should not end with newline: "${chunk}"`);
+    }
+  });
+
+  it('works with full report output from markdownToSlack', () => {
+    const md = [
+      '# Report',
+      '',
+      '| A | B |', '|---|---|', '| 1 | 2 |',
+      '',
+      'Some text between tables.',
+      '',
+      '| C | D |', '|---|---|', '| 3 | 4 |',
+      '',
+      'More text.',
+      '',
+      '| E | F |', '|---|---|', '| 5 | 6 |',
+    ].join('\n');
+    const mrkdwn = markdownToSlack(md);
+    const chunks = splitForSlack(mrkdwn, { maxLength: 80 });
+    // Every chunk with ``` must have an even number of ``` (paired)
+    for (const chunk of chunks) {
+      const count = (chunk.match(/```/g) || []).length;
+      assert.equal(count % 2, 0, `unpaired code block in chunk: "${chunk.slice(0, 50)}..."`);
+    }
   });
 });

@@ -59,6 +59,29 @@ import { markdownToSlack } from 'markdown-to-slack-mrkdwn';
 // markdownToSlack(text: string): string
 ```
 
+### Splitting long messages
+
+Slack truncates messages over ~4000 characters, which can break code blocks mid-table. Use `splitForSlack` to split the output into safe chunks:
+
+```js
+import { markdownToSlack, splitForSlack } from 'markdown-to-slack-mrkdwn';
+
+const mrkdwn = markdownToSlack(longMarkdown);
+const messages = splitForSlack(mrkdwn); // default: 3500 chars per chunk
+
+for (const msg of messages) {
+  await slack.chat.postMessage({ channel, text: msg });
+}
+```
+
+Custom limit:
+
+```js
+const messages = splitForSlack(mrkdwn, { maxLength: 2000 });
+```
+
+Code blocks are never split — each chunk has properly paired `` ``` `` markers.
+
 ## Examples
 
 | Markdown | Slack mrkdwn |
